@@ -2,6 +2,7 @@ const createError = require('http-errors');
 const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
+// const bodyParser = require('body-parser');
 const logger = require('morgan');
 
 const indexRouter = require('./routes/index');
@@ -10,8 +11,10 @@ const app = express();
 
 
 app.use(logger('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// app.use(bodyParser.json({'limit': '50mb'}));
+// app.use(bodyParser.urlencoded({'limit':'50mb', extended: true}));
+app.use(express.json({'limit': '50mb'}));
+app.use(express.urlencoded({'limit':'50mb', extended: true}));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -31,7 +34,11 @@ app.use(function(err, req, res, next) {
 
   // render the error page
   res.status(err.status || 500);
-  res.render('error');
+  // res.render('error');
+  res.json({
+    message: err.message,
+    error: err
+  });
 });
 
 // 1.连接数据库

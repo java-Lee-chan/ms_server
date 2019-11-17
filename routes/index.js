@@ -53,7 +53,7 @@ router.post('/manage/measure/add', (req, res) => {
 
 // 获取测量仪器列表的路由
 router.get('/manage/measure/list', (req, res) => {
-  MeasureModel.find({})
+  MeasureModel.find({}, {__v: 0})
     .then(measures => {
       res.send({status: 0, data: measures});
     })
@@ -76,7 +76,7 @@ router.post('/manage/measure/update', (req, res) => {
     });
 });
 
-// 检查计量编号是否重复的路由
+// 检查一个计量编号是否重复的路由
 router.post('/manage/measure/checkid', (req, res) => {
   const {_id} = req.body;
   MeasureModel.findOne({_id}).then(measure => {
@@ -92,20 +92,20 @@ router.post('/manage/measure/checkid', (req, res) => {
 
 // 下载测量仪器模板的路由
 router.get('/manage/measure/downloadMeasureTemaplate', function(req, res) {
-  const filePath = path.join(__dirname, '../public/测量仪器模板.xlsx');
+  let fileName = '测量仪器模板.xlsx';
+  let filePath = path.join(__dirname, '../public/', fileName);
+
   fs.exists(filePath, function(exist){
     if(exist){
-      // res.set({
-      //   "Content-type": "application/octet-stream",
-      //   "Content-Disposition":"attachment;filename=测量仪器模板.xlsx"
-      // });
-      // fReadStream = fs.createReadStream(filePath);
-      // fReadStream.on("data", (chunk) => res.write(chunk, 'binary'));
-      // fReadStream.on("end", function(){
-      //   res.end();
-      // })
-      res.download(filePath);
+      let f = fs.createReadStream(filePath);
+      // res.send({status: 0});
+      res.writeHead(200, {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': 'attachment; filename=template.xlsx',
+      });
+      f.pipe(res);
     }else { 
+      // console.log('file not exist!');
       res.send({status: 1, msg: 'file not exist!'});
     }
   })
