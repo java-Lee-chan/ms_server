@@ -9,6 +9,7 @@ const UserModel = require('../models/UserModel');
 const MeasureModel = require('../models/MeasureModel');
 const SparePartModel = require('../models/SpartPartModel');
 const RoleModel = require('../models/RoleModel');
+const MeterLevelModel = require('../models/MeterLevelModel');
 const moment = require('moment');
 
 
@@ -67,6 +68,20 @@ router.get('/manage/measure/list', (req, res) => {
       console.error('获取测量仪器列表异常', error);
       res.send({status: 1, msg: '获取测量仪器列表异常，请重新尝试'});
     })
+});
+
+// 获取最近3个月要过期的测量仪器列表的路由
+router.get('/manage/measure/recent/list', (req, res) => {
+  const date1 = moment().format('YYYY/MM/DD');
+  const date2 = moment().add(3, 'M').format('YYYY/MM/DD');
+  MeasureModel.find({$and:[{next_time: {$gte: date1}}, {next_time: {$lte: date2}}, {next_time: {$ne: '-'}}]}, {__v: 0})
+    .then(measures => {
+      res.send({status: 0, data: measures});
+    })
+    .catch(error => {
+      console.error('获取测量仪器列表异常', error);
+      res.send({status: 1, msg: '获取测量仪器列表异常，请重新尝试'});
+    });
 });
 
 // 编辑测量仪器的路由
@@ -175,9 +190,11 @@ router.post('/manage/spare-part/add', (req, res) => {
 
 // 获取备件列表的路由
 router.get('/manage/spare-part/list', (req, res) => {
-  const {start, end, username} = req.query;
-  if(username === 'admin'){
-    SparePartModel.find({$or: [{time: {$gte: start}, time: {$lte: end}}, {status: '未通过'}]}, {__v: 0})
+  const {start, end, committer} = req.query;
+  if(committer === 'admin'){
+    // $and:[{next_time: {$gte: date1}}, {next_time: {$lte: date2}}
+    // time: {$gte: start}, time: {$lte: end}
+    SparePartModel.find({$or: [{$and: [{time: {$gte: start}}, {time: {$lte: end}}]}, {status: '未通过'}]}, {__v: 0})
     .then(spareParts => {
       res.send({status: 0, data: spareParts});
     })
@@ -186,7 +203,7 @@ router.get('/manage/spare-part/list', (req, res) => {
       res.send({status: 1, msg: '获取备件列表异常，请重新尝试'});
     })
   }else {
-    SparePartModel.find({$or: [{time: {$gte: start}, time: {$lte: end}}, {status: '未通过'}], commiter: username}, {__v: 0})
+    SparePartModel.find({$or: [{$and: [{time: {$gte: start}}, {time: {$lte: end}}]}, {status: '未通过'}], committer}, {__v: 0})
     .then(spareParts => {
       res.send({status: 0, data: spareParts});
     })
@@ -251,6 +268,19 @@ router.post('/manage/spare-part/confirm', (req, res) => {
     res.send({status: 1, msg: '批量备件通过异常, 请重新尝试'});
   }
 });
+
+// 获取这个月每个人提交备件的时间的路由
+router.get('/manage/spare-part/recent/list', (req, res) => {
+  const time = moment().startOf('month').format('YYYY/MM/DD');
+  // console.log(time);
+  SparePartModel.find({time: {$gte: time}}, {committer: 1, time: 1})
+    .then(spareParts => {
+      res.send({status: 0, data: spareParts});
+    }).catch(error => {
+      console.log('获取提交备件的时间失败');
+      res.send({status: 0, msg: '获取提交备件的时间失败，请重新尝试'});
+    })
+})
 
 // 增加角色的路由
 router.post('/manage/role/add', (req, res) => {
@@ -339,7 +369,7 @@ router.post('/manage/user/add', (req, res) => {
 // 更新用户的路由
 router.post('/manage/user/update', (req, res) => {
   const user = req.body;
-  UserModel.findOneAndUpdate({_id: user._id}, {password: 0, __v: 0}, user)
+  UserModel.findOneAndUpdate({_id: user._id}, user)
     .then(oldUser => {
       // 用于对象的合并
       const data = Object.assign(oldUser, user)
@@ -362,5 +392,67 @@ router.post('/manage/user/delete', (req, res) => {
       res.send({status: 1, msg: '删除用户失败'});
     });
 });
+
+// 添加表层级的路由
+router.post('/manage/meter-level/add', (req, res) => {
+  const meterLevel = req.body;
+  const {name, father_id, meterId} = meterLevel;
+  MeterLevelModel.findOne({name, father_id, meterId})
+    .then(meterLevel => {
+      if(meterLevel && meterId !== undefined ){
+        res.send({status: 1, msg: '此表层级已存在'});
+        return new Promise(() => {
+        });
+      }else {
+        return MeterLevelModel.create({...req.body})
+      }
+    })
+    .then(meterLevel => {
+      res.send({status: 0, data: meterLevel});
+    })
+    .catch(error => {
+      res.send({status: 1, msg: error});
+    });
+});
+
+// 获取表层级列表的路由
+router.get('/manage/meter-level/list', (req, res) => {
+  MeterLevelModel.find({}, {__v: 0})
+    .then(meterLevels => {
+      res.send({status: 0, data: meterLevels});
+    }).catch(error => {
+      console.log('获取表层级列表失败');
+      res.send({status: 1, msg: '获取表层级列表失败，请重新尝试'});
+    })
+});
+
+// 更新表层级的路由
+router.post('/manage/meter-level/update', (req, res) => {
+  const meterLevel = req.body;
+  MeterLevelModel.findOneAndUpdate({_id: meterLevel._id}, meterLevel)
+    .then(oldMeterLevel => {
+      // 用于对象的合并
+      const data = Object.assign(oldMeterLevel, meterLevel);
+      res.send({status: 0, data});
+    })
+    .catch(error => {
+      console.log('更新表层级失败');
+      res.send({status: 1, msg: '更新表层级失败，请重新尝试'});
+    });
+});
+
+// 删除表层级的路由
+router.post('/manage/meter-level/delete', (req, res) => {
+  const {_id} = req.body;
+  MeterLevelModel.deleteMany({$or: [{_id: _id}, {father_id: _id}]})
+    .then(result => {
+      res.send({status: 0});
+    })
+    .catch(error => {
+      console.log('删除表层级及其子层级失败');
+      res.send({status: 1, msg: '删除表层级及其子层级失败，请重新尝试'});
+    })
+})
+
 
 module.exports = router;
