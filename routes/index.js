@@ -70,6 +70,19 @@ router.get('/manage/measure/list', (req, res) => {
     })
 });
 
+// 根据id获取一个测量仪器
+router.post('/manage/measure/get', (req, res) => {
+  const _id = req.body;
+  MeasureModel.findOne({_id}, {__v: 0})
+    .then(measure => {
+      res.send({status: 0, data: measure});
+    })
+    .catch(error => {
+      console.error('获取测量仪器异常', error);
+      res.send({status: 1, msg: '获取测量仪器异常，请重新尝试'});
+    });
+});
+
 // 获取最近3个月要过期的测量仪器列表的路由
 router.get('/manage/measure/recent/list', (req, res) => {
   const date1 = moment().format('YYYY/MM/DD');
@@ -185,6 +198,19 @@ router.post('/manage/spare-part/add', (req, res) => {
     .catch(error => {
       console.error('添加备件失败', error);
       res.send({status: 1, msg: '添加备件失败, 请重新尝试'});
+    });
+});
+
+// 根据id获取一个测量仪器
+router.post('/manage/spare-part/get', (req, res) => {
+  const _id = req.body;
+  SparePartModel.findOne({_id}, {__v: 0})
+    .then(sparePart => {
+      res.send({status: 0, data: sparePart});
+    })
+    .catch(error => {
+      console.error('获取备件异常', error);
+      res.send({status: 1, msg: '获取备件异常，请重新尝试'});
     });
 });
 
